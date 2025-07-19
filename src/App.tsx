@@ -7,15 +7,19 @@ import Hero from './components/sections/hero';
 import About from './components/sections/about';
 import Services from './components/sections/services';
 import Gallery from './components/sections/gallery';
-import Appointment from './components/sections/appointment';
+import EnhancedAppointment from './components/sections/enhanced-appointment';
 import ScrollProgress from './components/animations/scroll-progress';
 import SmoothScroll from './components/ui/smooth-scroll';
 import WhatsAppFloat from './components/ui/whatsapp-float';
 import PageTransition from './components/animations/page-transition';
+import { useRealTimeSync } from './hooks/useRealTimeSync';
 
 function App() {
   // Check if we're in admin mode (you can implement proper routing later)
   const isAdminMode = window.location.pathname.startsWith('/admin');
+  
+  // Initialize real-time sync for public users
+  const { connectionStatus } = useRealTimeSync(false);
 
   if (isAdminMode) {
     return <AdminPanel />;
@@ -35,7 +39,7 @@ function App() {
         <About />
         <Services />
         <Gallery />
-        <Appointment />
+        <EnhancedAppointment />
         </main>
       </PageTransition>
       <Footer />

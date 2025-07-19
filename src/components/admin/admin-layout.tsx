@@ -14,7 +14,8 @@ import {
   Scissors,
   TrendingUp,
   DollarSign,
-  UserCheck
+  UserCheck,
+  Activity
 } from 'lucide-react'
 import { Button } from '../ui/button'
 
@@ -33,6 +34,7 @@ const menuItems = [
   { id: 'content', label: 'İçerik Yönetimi', icon: FileText },
   { id: 'analytics', label: 'Analitik', icon: BarChart3 },
   { id: 'finance', label: 'Finansal', icon: DollarSign },
+  { id: 'system', label: 'Sistem Durumu', icon: Activity },
   { id: 'settings', label: 'Ayarlar', icon: Settings },
 ]
 

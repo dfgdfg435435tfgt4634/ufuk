@@ -1,14 +1,15 @@
 import React, { useState } from 'react'
 import AdminLayout from './admin-layout'
 import Dashboard from './dashboard'
-import Appointments from './appointments'
+import RealTimeAppointments from './real-time-appointments'
 import Customers from './customers'
 import Services from './services'
 import Gallery from './gallery'
-import ContentManagement from './content-management'
+import ContentEditor from './content-editor'
 import Analytics from './analytics'
 import Finance from './finance'
 import Settings from './settings'
+import SystemStatus from './system-status'
 
 export default function AdminPanel() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -18,7 +19,7 @@ export default function AdminPanel() {
       case 'dashboard':
         return <Dashboard />
       case 'appointments':
-        return <Appointments />
+        return <RealTimeAppointments />
       case 'customers':
         return <Customers />
       case 'services':
@@ -26,13 +27,15 @@ export default function AdminPanel() {
       case 'gallery':
         return <Gallery />
       case 'content':
-        return <ContentManagement />
+        return <ContentEditor />
       case 'analytics':
         return <Analytics />
       case 'finance':
         return <Finance />
       case 'settings':
         return <Settings />
+      case 'system':
+        return <SystemStatus />
       default:
         return <Dashboard />
     }
