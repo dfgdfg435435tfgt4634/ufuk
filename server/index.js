@@ -25,26 +25,59 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-// Initialize Supabase (you'll need to add your credentials)
-const supabase = createClient(
-  process.env.SUPABASE_URL || 'your-supabase-url',
-  process.env.SUPABASE_ANON_KEY || 'your-supabase-key'
-);
+// Initialize Supabase with proper error handling
+let supabase = null;
+
+if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+  try {
+    supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+    console.log('Supabase client initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize Supabase client:', error);
+  }
+} else {
+  console.warn('Supabase credentials not found. Please configure SUPABASE_URL and SUPABASE_ANON_KEY in your .env file');
+}
 
 // Email configuration
-const emailTransporter = nodemailer.createTransporter({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+let emailTransporter = null;
+
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  try {
+    emailTransporter = nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+    console.log('Email transporter initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize email transporter:', error);
   }
-});
+} else {
+  console.warn('Email credentials not found. Email notifications will be disabled');
+}
 
 // Twilio configuration
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+let twilioClient = null;
+
+if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+  try {
+    twilioClient = twilio(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
+    console.log('Twilio client initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize Twilio client:', error);
+  }
+} else {
+  console.warn('Twilio credentials not found. SMS notifications will be disabled');
+}
 
 // File upload configuration
 const storage = multer.memoryStorage();
@@ -90,6 +123,10 @@ io.on('connection', (socket) => {
 // Content Management API
 app.get('/api/content', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
     const { data, error } = await supabase
       .from('content')
       .select('*')
@@ -105,6 +142,10 @@ app.get('/api/content', async (req, res) => {
 
 app.put('/api/content/:id', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
     const { id } = req.params;
     const { content, title } = req.body;
 
@@ -128,6 +169,10 @@ app.put('/api/content/:id', async (req, res) => {
 
 app.post('/api/content', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
     const { section, key, content, title, type = 'text' } = req.body;
 
     const { data, error } = await supabase
@@ -169,23 +214,35 @@ app.post('/api/images/upload', upload.single('image'), async (req, res) => {
     const imageUrl = `/uploads/${filename}`;
 
     // Save to database
-    const { data, error } = await supabase
-      .from('images')
-      .insert([{
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('images')
+        .insert([{
+          filename,
+          original_name: req.file.originalname,
+          url: imageUrl,
+          size: req.file.size,
+          created_at: new Date()
+        }])
+        .select();
+
+      if (error) throw error;
+
+      // Broadcast new image to admin clients
+      io.to('admin-room').emit('image-uploaded', data[0]);
+
+      res.json(data[0]);
+    } else {
+      // Return basic response without database storage
+      const imageData = {
         filename,
         original_name: req.file.originalname,
         url: imageUrl,
         size: req.file.size,
         created_at: new Date()
-      }])
-      .select();
-
-    if (error) throw error;
-
-    // Broadcast new image to admin clients
-    io.to('admin-room').emit('image-uploaded', data[0]);
-
-    res.json(data[0]);
+      };
+      res.json(imageData);
+    }
   } catch (error) {
     console.error('Error uploading image:', error);
     res.status(500).json({ error: 'Failed to upload image' });
@@ -194,6 +251,10 @@ app.post('/api/images/upload', upload.single('image'), async (req, res) => {
 
 app.get('/api/images', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
     const { data, error } = await supabase
       .from('images')
       .select('*')
@@ -209,6 +270,10 @@ app.get('/api/images', async (req, res) => {
 
 app.delete('/api/images/:id', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
     const { id } = req.params;
 
     // Get image info first
@@ -249,6 +314,10 @@ app.delete('/api/images/:id', async (req, res) => {
 // Appointment Management API
 app.get('/api/appointments', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
     const { status, date, limit = 50 } = req.query;
     
     let query = supabase
@@ -277,6 +346,10 @@ app.get('/api/appointments', async (req, res) => {
 
 app.post('/api/appointments', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
     const { customer_name, phone, email, service, date, time, notes } = req.body;
 
     const { data, error } = await supabase
@@ -300,7 +373,7 @@ app.post('/api/appointments', async (req, res) => {
     io.to('admin-room').emit('appointment-created', data[0]);
 
     // Send confirmation email if email provided
-    if (email) {
+    if (email && emailTransporter) {
       try {
         await emailTransporter.sendMail({
           from: process.env.EMAIL_USER,
@@ -333,6 +406,10 @@ app.post('/api/appointments', async (req, res) => {
 
 app.put('/api/appointments/:id', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
     const { id } = req.params;
     const { status, notes } = req.body;
 
@@ -352,7 +429,7 @@ app.put('/api/appointments/:id', async (req, res) => {
       const appointment = data[0];
       
       // Send SMS if phone number available
-      if (appointment.phone && process.env.TWILIO_PHONE_NUMBER) {
+      if (appointment.phone && twilioClient && process.env.TWILIO_PHONE_NUMBER) {
         try {
           await twilioClient.messages.create({
             body: `BIG BOSS: ${appointment.date} ${appointment.time} tarihli randevunuz iptal edilmiştir. Bilgi: 0531 491 80 35`,
@@ -365,7 +442,7 @@ app.put('/api/appointments/:id', async (req, res) => {
       }
 
       // Send email if email available
-      if (appointment.email) {
+      if (appointment.email && emailTransporter) {
         try {
           await emailTransporter.sendMail({
             from: process.env.EMAIL_USER,
@@ -394,6 +471,10 @@ app.put('/api/appointments/:id', async (req, res) => {
 
 app.delete('/api/appointments/:id', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
     const { id } = req.params;
 
     const { error } = await supabase
